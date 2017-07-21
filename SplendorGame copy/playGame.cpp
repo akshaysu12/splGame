@@ -1,111 +1,16 @@
 #include "playGame.hpp"
+#include "draw.hpp"
+#include "botPlayer.hpp"
 #include <iostream>
-#include <iomanip>
 #include <string>
 #include <algorithm>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-/****************
-Interface Functions
-*****************/
-
-void makeGridLine()
-{
-  std::cout << " ";
-  for (int i = 0; i < 83; i++) {
-    std::cout << "-";
-  }
-  std::cout << std::endl;
-}
-
-void printHeadCell(std::string content) {
-  std::cout << "|" << " " << std::left << std::setw(10) << content << "|";
-}
-
-void printBodyCell(std::string content) {
-  std::cout << std::setw(3) << " " << std::setw(11) << content << std::setw(3) << " " << "|";
-}
-
-//total width = 83 chars
-void showBoard(Board* gameBoard)
-{
-  makeGridLine();
-  std::cout << "|" << std::setw(37) << " " << "GAMEBOARD" << std::setw(37) << " " << "|";
-  std::cout << std::setw(6) << " " << "Supply" << std::setw(5) << " " << "|" << std::endl;
-  std::string *colors = gameBoard->getColors();
-  makeGridLine(); //makes a horizontal line spanning the width of the grid
-  printHeadCell("Nobles");
-  std::cout << std::right << std::setw(72) << "|";
-  int* supply = gameBoard->getSupply();
-  std::string supplyString = "[";
-  supplyString = supplyString + std::to_string(supply[0]) + " " + std::to_string(supply[1]) + " " + std::to_string(supply[2]) + " " + std::to_string(supply[3]) + " " + std::to_string(supply[4]) + "]";
-  printBodyCell(supplyString);
-  std::cout << std::endl;
-  makeGridLine(); //makes a horizontal line spanning the width of the grid
-  int count = 0;
-  for (int k = 3; k >= 0; k--) {
-
-    if (k == 2) {
-      printHeadCell("Cards ");
-      std::cout << std::right << std::setw(72) << "|" << '\n';
-      makeGridLine(); //makes a horizontal line spanning the width of the grid
-    }
-    if (k != 3) {
-      printHeadCell("Card #: ");
-      for (int i = 0; i < 4; i++) {
-        printBodyCell(std::to_string(count));
-        count++;
-      }
-      std::cout << std::endl;
-    }
-    printHeadCell("Points: ");
-    for (int i = 0; i < 4; i++) {
-      Card* curr = gameBoard->getCard(k,i);
-      if (curr == nullptr)
-        printBodyCell("None");
-      else
-        printBodyCell(std::to_string(curr->getPoints()));
-    }
-
-    std::cout << std::endl;
-    printHeadCell("Resource: ");
-    for (int i = 0; i < 4; i++) {
-      Card* curr = gameBoard->getCard(k,i);
-      if (curr == nullptr)
-        printBodyCell("None");
-      else
-        printBodyCell(curr->getColor());
-    }
-
-    std::cout << std::endl;
-    printHeadCell("Cost: ");
-    for (int i = 0; i < 4; i++) {
-      Card* curr = gameBoard->getCard(k,i);
-      if (curr == nullptr) {
-        printBodyCell("None");
-      }
-      else {
-        int* cost = curr->getCost();
-        std::string costString = "[";
-        costString = costString + std::to_string(cost[0]) + " " + std::to_string(cost[1]) + " " + std::to_string(cost[2]) + " " + std::to_string(cost[3]) + " " + std::to_string(cost[4]) + "]";
-        printBodyCell(costString);
-      }
-    }
-    std::cout << std::endl;
-    makeGridLine();
-  }
-}
-
-/***************
-Player Actions
-***************/
-
-/************
-removes card from the gameboard and adds it to player
-*************/
-
+/**********\
+Testing Functions
+************/
 //bypass rules and add as many tokens as you want (up to 7 to your hand)
 void Add(Board* gameBoard, Player* currPlayer, int toAdd[])
 {
@@ -120,6 +25,7 @@ void Add(Board* gameBoard, Player* currPlayer, int toAdd[])
   std::cout << "tokens" << std::endl;
 }
 
+//bypass rules and add as many permenants you want to your player - used for testing noble cards
 void AddBonus(Board* gameBoard, Player* currPlayer, int toAdd[])
 {
   currPlayer->addBonus(toAdd);
@@ -132,20 +38,31 @@ void AddBonus(Board* gameBoard, Player* currPlayer, int toAdd[])
   std::cout << "tokens" << std::endl;
 }
 
-void buy(Board* gameBoard, Player* currPlayer, int row, int column)
+/***************
+Player Actions
+***************/
+
+
+/************
+removes card from the gameboard and adds it to player
+*************/
+
+int buy(Board* gameBoard, Player* currPlayer, int row, int column)
 {
   std::cout << "called buy" << std::endl;
 
   Card* cardWanted = gameBoard->getCard(row, column);
   int success = currPlayer->buyCard(cardWanted);
   if (success == 1) {
-    std::cout << "card successfully bought!" << std::endl;
+    std::cout << "---------------------Card Successfully Bought!-------------------" << std::endl;
     int* cost = cardWanted->getCost();
     gameBoard->addTokens(cost);
     gameBoard->replaceCard(row, column);
+    return 1;
   }
   else {
-    std::cout << "sorry, you are unable to purchase that card." << std::endl;
+    std::cout << "Sorry, you are unable to purchase that card." << std::endl;
+    return 0;
   }
 
 }
@@ -191,13 +108,13 @@ int getTokens(Board* gameBoard, Player* currPlayer, int toGrab[])
     if (toGrab[i] > 1) {
       if (supply[i] < 4) {
         std::cout << "There are not enough tokens" << colors[i] << " tokens" << '\n';
-        return -1;
+        return 0;
       }
       DBLcount++;
     }
     if (DBLcount > 1) {
       std::cout << "Sorry. You can only grab one type of color if you are grabbing two tokens." << std::endl;
-      return - 1;
+      return 0;
     }
 
     if (toGrab[i] > 0) {
@@ -205,18 +122,22 @@ int getTokens(Board* gameBoard, Player* currPlayer, int toGrab[])
     }
     if (SGLcount > 3) {
       std::cout << "Sorry. You can only grab 3 tokens if you are grabbing multiple colors." << std::endl;
-      return -1;
+      return 0;
     }
   }
 
   gameBoard->removeTokens(toGrab);
   currPlayer->addTokens(toGrab);
 
-  std::cout << "You have grabbed: ";
+  std::cout << std::endl;
+  makeGridLine();
+  std::cout << "|             " << "You have grabbed: ";
   for (int i = 0; i < 5; i++) {
       std::cout << toGrab[i] << ":" << colors[i] << " ";
   }
-  std::cout << "tokens" << std::endl;
+  std::cout << "tokens           |" << std::endl;
+  makeGridLine();
+  std::cout << std::endl;
   return 1;
 }
 
@@ -331,6 +252,14 @@ int main(int argc, char const *argv[]) {
   {
     showBoard(game);
     endTurn = false;
+
+    //skip getting input if the current player is a bot
+    if (currPlayer->getBotStatus()) {
+      botTurn(game, currPlayer);
+      endOfTurn(game, currPlayer, endTurn, numPlayers, currPos, endGame);
+      continue;
+    }
+
     //parse user input and run corresponding commands
     while (endTurn == false)
     {
@@ -375,19 +304,47 @@ int main(int argc, char const *argv[]) {
           std::cout << "val is: " << val << '\n';
           //convert the number into the rows/columns as stored in board class
           if (val < 4) {
-            buy(game, currPlayer, 2, val);
+            if(buy(game, currPlayer, 2, val))
+            {
+              endOfTurn(game, currPlayer, endTurn, numPlayers, currPos, endGame);
+              std::cout << "------------------------------ It Is The End Of Your Turn ----------------------------" << '\n';
+              std::cout << "------------------------------ Press [Enter] to Continue -----------------------------";
+              std::cin.ignore();
+              std::cout << std::endl;
+              std::cout << std::endl;
+              std::cout << std::endl;
+              std::cout << std::endl;
+            }
           }
           else if (val > 3 && val < 8) {
             int col = val % 4;
-            buy(game, currPlayer, 1, col);
+            if(buy(game, currPlayer, 1, col))
+            {
+              endOfTurn(game, currPlayer, endTurn, numPlayers, currPos, endGame);
+              std::cout << "------------------------------ It Is The End Of Your Turn ----------------------------" << '\n';
+              std::cout << "------------------------------ Press [Enter] to Continue -----------------------------";
+              std::cin.ignore();
+              std::cout << std::endl;
+              std::cout << std::endl;
+              std::cout << std::endl;
+              std::cout << std::endl;
+            }
           }
           else
           {
             int col = val % 4;
-            buy(game, currPlayer, 0, col);
+            if(buy(game, currPlayer, 0, col))
+            {
+              endOfTurn(game, currPlayer, endTurn, numPlayers, currPos, endGame);
+              std::cout << "------------------------------ It Is The End Of Your Turn ----------------------------" << '\n';
+              std::cout << "------------------------------ Press [Enter] to Continue -----------------------------";
+              std::cin.ignore();
+              std::cout << std::endl;
+              std::cout << std::endl;
+              std::cout << std::endl;
+              std::cout << std::endl;
+            }
           }
-          endOfTurn(game, currPlayer, endTurn, numPlayers, currPos, endGame);
-          std::cout << "It is the end of your turn." << '\n';
         }
       }
 
@@ -478,10 +435,17 @@ int main(int argc, char const *argv[]) {
           coins[i] = val;
         }
 
-        int success = getTokens(game, currPlayer, coins);
-        if (success == 1) {
+        //int success = getTokens(game, currPlayer, coins)
+        if(getTokens(game, currPlayer, coins))
+        {
           endOfTurn(game, currPlayer, endTurn, numPlayers, currPos, endGame);
-          std::cout << "It is the end of your turn." << '\n';
+          std::cout << "------------------------------ It Is The End Of Your Turn ----------------------------" << '\n';
+          std::cout << "------------------------------ Press [Enter] to Continue -----------------------------";
+          std::cin.ignore();
+          std::cout << std::endl;
+          std::cout << std::endl;
+          std::cout << std::endl;
+          std::cout << std::endl;
         }
       }
 
@@ -537,8 +501,13 @@ int main(int argc, char const *argv[]) {
 
       else if (strcmp(token, "end") == 0) {
         endOfTurn(game, currPlayer, endTurn, numPlayers, currPos, endGame);
-        std::cout << "You have ended your turn." << '\n';
-
+        std::cout << "------------------------------ You Have Ended Your Turn ------------------------------" << '\n';
+        std::cout << "------------------------------ Press [Enter] to Continue -----------------------------";
+        std::cin.ignore();
+        std::cout << std::endl;
+        std::cout << std::endl;
+        std::cout << std::endl;
+        std::cout << std::endl;
       }
     }
   }

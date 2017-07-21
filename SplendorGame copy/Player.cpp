@@ -3,7 +3,7 @@
 #include <iostream>
 
 //Constructor
-Player::Player(std::string name)
+Player::Player(std::string name, bool ifBot)
 {
   //initialize resources/pts to 0
   points = 0;
@@ -12,6 +12,7 @@ Player::Player(std::string name)
     tokens[i] = 0;
   }
   this->name = name;
+  bot = ifBot;
 }
 
 /***************
@@ -44,6 +45,12 @@ std::string Player::getName()
 {
   return name;
 }
+
+bool Player::getBotStatus()
+{
+  return bot;
+}
+
 
 /***********************************
 Actions a Player can take on their turn

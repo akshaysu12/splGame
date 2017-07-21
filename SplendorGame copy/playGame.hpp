@@ -6,7 +6,7 @@
 #include <iostream>
 
 //Function Headers
-void buy(Board* gameBoard, Player* currPlayer, int row, int column);
+int buy(Board* gameBoard, Player* currPlayer, int row, int column);
 void reserve(Board* gameBoard, Player* currPlayer, int row, int column);
 int getTokens(Board* gameBoard, Player* currPlayer, int *toGrab);
 void show(Player* currPlayer);

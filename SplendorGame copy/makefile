@@ -1,7 +1,13 @@
 all: play
 
-play: playGame.o initGame.o Board.o Player.o Card.o
-	g++ -g playGame.o initGame.o Board.o Player.o Card.o -o play
+play: playGame.o initGame.o Board.o Player.o Card.o botPlayer.o draw.o
+	g++ -g playGame.o initGame.o Board.o Player.o Card.o botPlayer.o draw.o -o play
+
+botPlayer.o: botPlayer.cpp botPlayer.hpp playGame.hpp initGame.hpp Board.hpp Player.hpp Card.hpp
+	g++ -c botPlayer.cpp
+
+draw.o: draw.cpp draw.hpp playGame.hpp initGame.hpp Board.hpp Player.hpp Card.hpp
+	g++ -c draw.cpp
 
 playGame.o: playGame.cpp playGame.hpp initGame.hpp Board.hpp Player.hpp Card.hpp
 	g++ -c playGame.cpp

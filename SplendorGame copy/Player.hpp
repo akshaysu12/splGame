@@ -10,6 +10,7 @@ class Player
 private:
   int points;       //number of prestige points player has
   std::string name;
+  bool bot;
 
   //white, black, red, blue, green
   int bonuses[5]; //number of permenant resources bought through development Cards
@@ -20,7 +21,7 @@ private:
   std::vector<Card*> reservedCards; //max 3 - pointers to cards reserved with yelow tokens
 public:
   //constructor
-  Player(std::string name);
+  Player(std::string name, bool ifBot);
 
   //accessor functions
   int* showResources();
@@ -28,6 +29,7 @@ public:
   int getPoints();
   std::string getName();
   int* getTokens();
+  bool getBotStatus();
 
 
 /***********************************

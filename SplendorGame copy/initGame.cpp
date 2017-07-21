@@ -194,14 +194,19 @@ std::vector<Card>* generateNobleCards()
 
 Board* initializeGame(std::vector<std::string> names)
 {
-
   srand(time(NULL));
 
   //create a vector of Players on the heap to initialize Board class with
   std::vector<Player> *players = new std::vector<Player>;
 
+  //for now workaround - manually assign second player as a bot
   for (int i = 0; i < names.size(); i++) {
-    Player *currPlayer = new Player(names[i]);
+    Player *currPlayer;
+    if (i == names.size()-1) {
+      currPlayer = new Player(names[i], true);
+    }
+    else
+      currPlayer = new Player(names[i], false);
     players->push_back(*currPlayer);
   }
 
