@@ -47,6 +47,7 @@ public:
   std::vector<Player>* getPlayers();
   int* getSupply();
   std:: string* getColors();
+  int getNumPlayers();
 };
 
 #endif

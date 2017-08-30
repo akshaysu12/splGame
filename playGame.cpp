@@ -7,6 +7,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 /**********\
 Testing Functions
@@ -43,14 +48,73 @@ Player Actions
 ***************/
 
 
+/******** Help Functions *********/
+
 /************
-removes card from the gameboard and adds it to player
+Function: help
+Description: removes card from the gameboard and adds it to player
+*************/
+
+void help()
+{
+  makeGridLine();
+  std::cout << "List of Commands: [words] are arguments required for the command (without the brackets)" << '\n';
+  makeGridLine();
+  std::cout << "rules                          Brings up the rules to the game." << '\n';
+  std::cout << "help                           Brings up the help menu for commands." << '\n';
+  std::cout << "buy [number]                   Purchase a card on the gameboard." << '\n';
+  std::cout << "reserve [number]               Reserve a card (limit 3)" << '\n';
+  std::cout << "grab [N N N N N]               Grab tokens from the supply to buy cards (must have a number for each color)."<< '\n';
+  std::cout << "show                           Display your current tokens, bonuses, points and reserved cards." << '\n';
+  std::cout << "players                        Display all players' current tokens, bonuses, points." << '\n';
+  std::cout << "supply                         Display the current available supply of tokens." << '\n';
+  std::cout << "board                          Display the gameboard." << '\n';
+  std::cout << "end                            End your turn with no action." << '\n';
+  std::cout << "resign                         End the game." << '\n';
+  std::cout << "add                            Cheat function to manually grab as many tokens as you want." << '\n';
+  std::cout << "bonus                          Cheat function to manually add as many bonuses as you want." << '\n';
+  makeGridLine();
+
+}
+
+/************
+Function: rules
+Description: Creates a child process and then passes that to the OS to open rules.txt in vim
+*************/
+
+void rules()
+{
+  pid_t spawnpid = -5;
+  int childExitMethod = -5;
+  //create an argument to
+  char* args[3];
+  args[0] = (char*) "vim";
+  args[1] = (char*) "rules.txt";
+  args[2] = NULL;
+  spawnpid = fork();
+  switch(spawnpid)
+  {
+    case 0:
+      if (execvp(args[0], args) < 0)
+      {
+        perror("exec failure!");
+        exit(1);
+      }
+
+    default:
+      //here we wait for the child process to complete because it is a foreground process
+      spawnpid = waitpid(spawnpid, &childExitMethod, 0);
+  }
+}
+
+
+/************
+Function: buy
+Description: removes card from the gameboard and adds it to player
 *************/
 
 int buy(Board* gameBoard, Player* currPlayer, int row, int column)
 {
-  std::cout << "called buy" << std::endl;
-
   Card* cardWanted = gameBoard->getCard(row, column);
   int success = currPlayer->buyCard(cardWanted);
   if (success == 1) {
@@ -64,22 +128,20 @@ int buy(Board* gameBoard, Player* currPlayer, int row, int column)
     std::cout << "Sorry, you are unable to purchase that card." << std::endl;
     return 0;
   }
-
 }
 
-void reserve(Board* gameBoard, Player* currPlayer, int row, int column)
+int reserve(Board* gameBoard, Player* currPlayer, int row, int column)
 {
-  std::cout << "called reserve" << std::endl;
-
   std::vector<Card*> *reserved = currPlayer->getReservedCards();
   if (reserved->size() >= 3) {
     std::cout << "You cannot reserve any more cards." << '\n';
-    return;
+    return -1;
   }
 
   currPlayer->reserveCard(gameBoard->getCard(row,column));
   gameBoard->replaceCard(row, column);
   gameBoard->decrementYellow();
+  return 1;
 }
 
 void claim(Player* currPlayer, int cardLocation, int tokenReplace)
@@ -89,11 +151,23 @@ void claim(Player* currPlayer, int cardLocation, int tokenReplace)
 
 void showSupply(Board* gameBoard)
 {
+
+  makeGridLine();
+
+  //player name as header
+  printHeadCell("Supply");
   int* supply = gameBoard->getSupply();
+  std::string tokenString = "[" + std::to_string(supply[0]) + " " + std::to_string(supply[1]) + " " + std::to_string(supply[2]) + " " + std::to_string(supply[3]) + " " + std::to_string(supply[4]) + "]";
+  printBodyCell(tokenString);
+  std::cout << std::endl;
+  makeGridLine();
+  /*
+  old deprecated display code
   for (int i = 0; i < 5; i++) {
     std::cout << supply[i] << " ";
   }
   std::cout << std::endl;
+  */
 }
 
 int getTokens(Board* gameBoard, Player* currPlayer, int toGrab[])
@@ -143,41 +217,85 @@ int getTokens(Board* gameBoard, Player* currPlayer, int toGrab[])
 
 void show(Player* currPlayer)
 {
-  std::cout << currPlayer->getName() << '\n';
-  std::cout << "Points:" << currPlayer->getPoints() << '\n';
-  std::cout << "Current Supply:" << '\n';
+  makeGridLine();
+
+  //player name as header
+  printHeadCell(currPlayer->getName());
+
+  //Points
+  printBodyCell("Points:" + std::to_string(currPlayer->getPoints()));
+
+  //Tokens
   int* tokens = currPlayer->getTokens();
-  std::cout << "Tokens:" << "[" << tokens[0] << " " << tokens[1] << " " << tokens[2] << " " << tokens[3] << " " << tokens[4] << "]" <<  '\n';
+  std::string tokenString = "Tokens: [";
+  tokenString = tokenString + std::to_string(tokens[0]) + " " + std::to_string(tokens[1]) + " " + std::to_string(tokens[2]) + " " + std::to_string(tokens[3]) + " " + std::to_string(tokens[4]) + "]";
+  printBodyCell(tokenString);
+
+  //Resources
   int* resources = currPlayer->showResources();
-  std::cout << "Resources:" << "[" << resources[0] << " " << resources[1] << " " << resources[2] << " " << resources[3] << " " << resources[4] << "]" <<  '\n';
+  std::string resourceString = "Resources: [";
+  resourceString = resourceString + std::to_string(resources[0]) + " " + std::to_string(resources[1]) + " " + std::to_string(resources[2]) + " " + std::to_string(resources[3]) + " " + std::to_string(resources[4]) + "]";
+  printBodyCell(resourceString);
+
+  std::cout << '\n';
+
+  //ReservedCards
   std::vector<Card*> *reserved = currPlayer->getReservedCards();
-  if (reserved->size() > 0) {
-    std::cout << "Reserved Cards: " << std::endl;
-    for (int i = 0; i < reserved->size(); i++) {
-      std::cout << "Reserved Card " << i << ":" << std::endl;
-      int *cost = reserved->at(i)->getCost();
-      std::cout << "Points:" << currPlayer->getPoints() << '\n';
-      std::cout << "Cost:" << "[" << cost[0] << " " << cost[1] << " " << cost[2] << " " << cost[3] << " " << cost[4] << "]" <<  '\n';
-      std::cout << std::endl;
+  if (reserved->size() != 0) {
+   makeGridLine();
+  }
+
+  for (int i = 0; i < reserved->size(); i++) {
+    printHeadCell("Reserved Card " + std::to_string(i) + ":");
+
+    //card point values
+    //std::cout << "Points:" + currPlayer->getPoints() << '\n';
+    printBodyCell("Points:" + std::to_string(reserved->at(i)->getPoints()));
+
+
+    //card cost
+    int *cost = reserved->at(i)->getCost();
+    std::string costString = "Cost: [";
+    costString = costString + std::to_string(cost[0]) + " " + std::to_string(cost[1]) + " " + std::to_string(cost[2]) + " " + std::to_string(cost[3]) + " " + std::to_string(cost[4]) + "]";
+    printBodyCell(costString);
+    std::cout << '\n';
+    if (i == reserved->size()) {
+      makeGridLine();
     }
   }
 
+  makeGridLine();
+  std::cout << std::endl;
 }
 
-void showAll(Board* gameBoard, int numPlayers)
+void showAll(Board* gameBoard, std::vector<Player> *players)
 {
-  /*
-  Player* players = gameBoard->getPlayers();
-  for (int i = 0; i < numPlayers; i++) {
-    show(players[i]);
+  for (int i = 0; i < players->size(); i++) {
+    Player currPlayer = players->at(i);
+    makeGridLine();
+
+    //player name as header
+    printHeadCell(currPlayer.getName());
+
+    //Points
+    printBodyCell("Points:" + std::to_string(currPlayer.getPoints()));
+
+    //Tokens
+    int* tokens = currPlayer.getTokens();
+    std::string tokenString = "Tokens: [";
+    tokenString = tokenString + std::to_string(tokens[0]) + " " + std::to_string(tokens[1]) + " " + std::to_string(tokens[2]) + " " + std::to_string(tokens[3]) + " " + std::to_string(tokens[4]) + "]";
+    printBodyCell(tokenString);
+
+    //Resources
+    int* resources = currPlayer.showResources();
+    std::string resourceString = "Resources: [";
+    resourceString = resourceString + std::to_string(resources[0]) + " " + std::to_string(resources[1]) + " " + std::to_string(resources[2]) + " " + std::to_string(resources[3]) + " " + std::to_string(resources[4]) + "]";
+    printBodyCell(resourceString);
+
+    std::cout << '\n';
+    makeGridLine();
   }
-  */
-  std::cout << "show all players here" << '\n';
-}
 
-void help()
-{
-  std::cout << "show help keywords here" << '\n';
 }
 
 void endOfTurn(Board* gameBoard, Player* &currPlayer, bool &endTurn, int numPlayers, int &currPos, bool &endGame)
@@ -211,6 +329,22 @@ void endOfTurn(Board* gameBoard, Player* &currPlayer, bool &endTurn, int numPlay
   }
 }
 
+void resign(Board* gameBoard, Player* &currPlayer, bool &endTurn, int numPlayers, int &currPos, bool &endGame) {
+
+  //update the player to get the name for the victor
+  std::vector<Player>* players = gameBoard->getPlayers();
+
+  currPos++;
+  if (currPos == numPlayers) {
+    currPos = 0;
+  }
+  currPlayer = &players->at(currPos);
+  std::string winner = currPlayer->getName();
+  std::cout << "Congratulations " << winner << " you have won by resignation!" << std::endl;
+  endTurn = true;
+  endGame = true;
+}
+
 bool endOfGame(Player* currPlayer)
 {
 
@@ -223,16 +357,10 @@ bool endOfGame(Player* currPlayer)
   return false;
 }
 
-int main(int argc, char const *argv[]) {
-  //int numPlayers = argv[0];
+void play(std::vector<std::string> names) {
   int numPlayers = 2;
   Player* currPlayer;
   int currPos = 0;
-  std::vector<std::string> names;
-  std::string name = "playerOne";
-  names.push_back(name);
-  name = "BOT";
-  names.push_back(name);
   Board* game = initializeGame(names);
 
   std::vector<Player>* players = game->getPlayers();
@@ -260,13 +388,20 @@ int main(int argc, char const *argv[]) {
       continue;
     }
 
+    int first = 1;
+
     //parse user input and run corresponding commands
     while (endTurn == false)
     {
       //get user input
       while(1)
       {
-        //std::cout << "Player " << currPlayer->getName() << " it is your turn. "  << '\n';
+        fflush(stdin);
+        if (first == 1) {
+          std::cout << currPlayer->getName() << " it is your turn. "  << '\n';
+          std::cout << "------------------------------ Press [Enter] to Continue -----------------------------";
+          std::cin.ignore();
+        }
         printf(": ");
         numCharsEntered = getline(&lineEntered, &bufferSize, stdin);
         if (numCharsEntered == -1)
@@ -369,21 +504,29 @@ int main(int argc, char const *argv[]) {
             val = num - 48;
           }
           //convert the number into the rows/columns as stored in board class
+          int success;
           if (val < 4) {
-            reserve(game, currPlayer, 2, val);
+            success = reserve(game, currPlayer, 2, val);
           }
           else if (val > 3 && val < 8) {
             int col = val % 4;
-            reserve(game, currPlayer, 1, col);
+            success = reserve(game, currPlayer, 1, col);
           }
           else
           {
             int col = val % 4;
-            reserve(game, currPlayer, 0, col);
+            success = reserve(game, currPlayer, 0, col);
           }
-
-          endOfTurn(game, currPlayer, endTurn, numPlayers, currPos, endGame);
-          std::cout << "It is the end of your turn." << '\n';
+          if (success == 1) {
+            endOfTurn(game, currPlayer, endTurn, numPlayers, currPos, endGame);
+            std::cout << "------------------------------ It Is The End Of Your Turn ----------------------------" << '\n';
+            std::cout << "------------------------------ Press [Enter] to Continue -----------------------------";
+            std::cin.ignore();
+            std::cout << std::endl;
+            std::cout << std::endl;
+            std::cout << std::endl;
+            std::cout << std::endl;
+          }
         }
       }
 
@@ -491,12 +634,30 @@ int main(int argc, char const *argv[]) {
         show(currPlayer);
       }
 
+      else if (strcmp(token, "players") == 0) {
+        showAll(game, game->getPlayers());
+      }
+
       else if (strcmp(token, "board") == 0) {
         showBoard(game);
       }
 
       else if (strcmp(token, "supply") == 0) {
         showSupply(game);
+      }
+
+      else if (strcmp(token, "help") == 0) {
+        help();
+      }
+
+      else if(strcmp(token, "rules") == 0)
+      {
+        rules();
+      }
+
+      else if(strcmp(token, "resign") == 0)
+      {
+        resign(game, currPlayer, endTurn, numPlayers, currPos, endGame);
       }
 
       else if (strcmp(token, "end") == 0) {
@@ -509,9 +670,11 @@ int main(int argc, char const *argv[]) {
         std::cout << std::endl;
         std::cout << std::endl;
       }
+
+      //make sure player greeting does not get re-shown
+      first = 0;
     }
   }
 
   cleanUp(game);
-  return 0;
 }

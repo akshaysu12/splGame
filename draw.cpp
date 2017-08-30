@@ -34,15 +34,15 @@ void showBoard(Board* gameBoard)
   makeGridLine();
   std::cout << "|" << std::setw(37) << " " << "GAMEBOARD" << std::setw(37) << " " << "|";
   std::cout << std::setw(6) << " " << "Supply" << std::setw(5) << " " << "|" << std::endl;
-  std::string *colors = gameBoard->getColors();
-  makeGridLine(); //makes a horizontal line spanning the width of the grid
-  printHeadCell("Nobles");
-  std::cout << std::right << std::setw(72) << "|";
+  std::cout << "|" << std::setw(18) << " " << " Coin Order: [ White  Black  Red  Blue  Green ]" << std::setw(18) << " " << "|";
   int* supply = gameBoard->getSupply();
   std::string supplyString = "[";
   supplyString = supplyString + std::to_string(supply[0]) + " " + std::to_string(supply[1]) + " " + std::to_string(supply[2]) + " " + std::to_string(supply[3]) + " " + std::to_string(supply[4]) + "]";
   printBodyCell(supplyString);
   std::cout << std::endl;
+  makeGridLine(); //makes a horizontal line spanning the width of the grid
+  printHeadCell("Nobles");
+  std::cout << std::right << std::setw(72) << "|" << std::endl;
   makeGridLine(); //makes a horizontal line spanning the width of the grid
   int count = 0;
   for (int k = 3; k >= 0; k--) {
